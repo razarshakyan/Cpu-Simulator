@@ -1,5 +1,5 @@
-#include "Cpu_Simulator.h"
-#include "Helpers.h"
+#include "Cpu_Simulator.hpp"
+//#include "Helpers.cpp"
 
 void mov(short &dest, short &source)
 {
@@ -55,13 +55,40 @@ eRegisters get_register(const std::string &arg)
     }
 }
 
-Instruction parse(std::string &line, std::map<std::string, size_t> &labels, size_t line_num)
+Instruction parse(std::string &line, std::multimap<std::string, size_t> &labels, size_t line_num)
 {
     Instruction current_instruction;
+    label_checker(line);
     to_lower(line);
     auto string_vector = splitter(line, ", ");
-    // ստեղ եմ հասել
-    
+    label_mapper(string_vector, line_num, labels);
+    if (string_vector.size() > 3) {
+        current_instruction.opcode = Opcode::ERROR;
+        return current_instruction;
+    }
+    current_instruction.opcode = get_opcode(string_vector[0]);
+    if (current_instruction.opcode == Opcode::JG || current_instruction.opcode == Opcode::JL
+    || current_instruction.opcode == Opcode::JE || current_instruction.opcode == Opcode::JMP)
+    {
+        current_instruction.target = string_vector[1];
+    }
+    else {
+        current_instruction.dest_reg = get_register(string_vector[1]);
+    }
+
+    if (string_vector.size() == 3) {
+        if (is_number(string_vector[2])) {
+            current_instruction.source_immediate = std::stoi(string_vector[2]);
+            current_instruction.source_reg = eRegisters::NUM;
+        }
+        else if (current_instruction.opcode == Opcode::NOT) {
+            current_instruction.opcode = Opcode::ERROR;
+        }
+        else {
+            current_instruction.source_reg = get_register(string_vector[2]);
+        }
+    }
+    return current_instruction;
 }
 
 void init_cpu(Cpu &fake_cpu)
@@ -69,8 +96,31 @@ void init_cpu(Cpu &fake_cpu)
     fake_cpu.registers = {0,0,0,0,0,0,0};
 }
 
-void execute_cpu(Cpu &fake_cpu, std::map<size_t, Instruction> &instructionconst, std::multimap<std::string, size_t> &labels)
+void execute_cpu(Cpu &fake_cpu, std::map<size_t, Instruction> &instructions, const std::multimap<std::string, size_t> &labels)
 {
+    std::map<Opcode, void (*)(short&, short&)> instr_map;
+    alu_mappings(instr_map);
+    std::map<eRegisters, short*> regs_map;
+    registers_mapping(regs_map,fake_cpu);
+    // std::map<OPCODE, void(*)(int&, int, j&)> jumps;
+	// init_jxx_map(jumps);
+
+    short RI = 0;
+    while (instructions.find(RI) != instructions.end()) {
+        Instruction tmp = instructions[RI];
+        if (instr_map.find(tmp.opcode) != instr_map.end()) {
+            if (tmp.source_reg == eRegisters::NUM) {
+                instr_map[tmp.opcode](*regs_map[tmp.dest_reg], tmp.source_immediate);
+            }
+            else {
+                instr_map[tmp.opcode](*regs_map[tmp.dest_reg], *regs_map[tmp.source_reg]);
+            }
+        }
+        //else if {
+            //TODO
+        //} for jumps
+        ++RI;
+    }
 }
 
 void alu_mappings(std::map<Opcode, void (*)(short &, short &)> &alu_map)
