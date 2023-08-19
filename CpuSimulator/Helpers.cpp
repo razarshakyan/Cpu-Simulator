@@ -1,4 +1,4 @@
-#include "Helpers.h"
+#include "Helpers.hpp"
 
 bool is_number(const std::string &str)
 {
@@ -66,5 +66,25 @@ void open_file(std::ifstream &input_file, int argc, char **argv)
     if (!input_file.is_open()) {
         std::cout << "File cannot be openned: " << argv[1] << std::endl;
         exit(EXIT_FAILURE);
+    }
+}
+
+void label_checker(std::string &line)
+{
+    for (size_t i{}; line[i] != '\0'; ++i) {
+        if (line[i] == ':') {
+            line.insert(i + 1, 1, ' ');
+            ++i;
+        }
+    }
+}
+
+void label_mapper(std::vector<std::string> &str, size_t line, std::multimap<std::string, size_t> &labels)
+{
+    auto it = str.begin();
+    if (it < str.end() && it->back() == ':') {
+        it->pop_back();
+        labels.insert({*it,line});
+        str.erase(str.begin());
     }
 }
